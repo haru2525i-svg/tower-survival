@@ -1,6 +1,0 @@
-﻿function draw() {
-  drawWorld();
-  drawHud();
-}
-
-
