@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>塔攻略</title>
-  <link rel="stylesheet" href="style.css?v=20260424-18">
+  <link rel="stylesheet" href="style.css?v=20260425-02">
 </head>
 <body>
   <main class="app">
@@ -43,7 +43,12 @@
       <div class="arena-wrap">
         <canvas id="game" width="1280" height="720" aria-label="ゲーム画面"></canvas>
         <button id="gameReturnButton" class="game-return-button hidden" type="button">スタートへ</button>
-        <button id="practicePanelToggle" class="practice-panel-toggle hidden" type="button">スキル選択</button>
+        <div id="practicePanelButtons" class="practice-panel-toggle-group">
+          <button id="practiceStageButton" class="practice-panel-toggle hidden" type="button">ステージ</button>
+          <button id="practiceEnemyButton" class="practice-panel-toggle hidden" type="button">敵</button>
+          <button id="practiceBossButton" class="practice-panel-toggle hidden" type="button">ボス</button>
+          <button id="practicePlayerButton" class="practice-panel-toggle hidden" type="button">プレイヤー</button>
+        </div>
 
         <div id="startOverlay" class="overlay">
           <div class="panel menu-panel">
@@ -64,6 +69,19 @@
                 <p class="eyebrow">Main Menu</p>
                 <h2>行き先を選ぶ</h2>
                 <p class="lead">最初はここから、遊び方に合わせてモードを切り替えます。</p>
+                <div class="player-name-box">
+                  <label class="player-name-label" for="playerNameInput">オンライン表示名</label>
+                  <input
+                    id="playerNameInput"
+                    class="player-name-input"
+                    type="text"
+                    maxlength="20"
+                    placeholder="名無し"
+                    autocomplete="nickname"
+                    spellcheck="false"
+                  >
+                  <p class="player-name-help">未入力なら「名無し」。オンラインランキング送信時に使います。</p>
+                </div>
                 <div class="menu-button-stack">
                   <button id="menuAdventureButton" class="button menu-mode-button" type="button">塔攻略</button>
                   <button id="menuPracticeButton" class="button button-secondary menu-mode-button" type="button">ボス練習</button>
@@ -126,7 +144,20 @@
               <p class="eyebrow">Records</p>
               <h2>戦績</h2>
               <p class="lead">クリア/敗北した通常プレイの履歴を新しい順で確認できます。</p>
-              <div id="historyList" class="history-list"></div>
+              <div class="records-block">
+                <h3 class="records-block-title">クリア集計</h3>
+                <p class="records-block-lead">クリアした戦績を難易度ごとにまとめ、階層別に見られます。</p>
+                <div id="clearSummaryList" class="clear-summary-list"></div>
+              </div>
+              <div class="records-block">
+                <h3 class="records-block-title">オンラインランキング</h3>
+                <p class="records-block-lead">通常プレイ終了時に送信された記録の上位10件です。</p>
+                <div id="onlineRankingList" class="online-ranking-list"></div>
+              </div>
+              <div class="records-block">
+                <h3 class="records-block-title">履歴一覧</h3>
+                <div id="historyList" class="history-list"></div>
+              </div>
               <div class="menu-sub-actions">
                 <button id="recordsBackButton" class="button button-secondary" type="button">戻る</button>
               </div>
@@ -166,68 +197,84 @@
 
         <div id="practicePanel" class="practice-panel hidden">
           <strong id="practicePanelTitle">開発設定</strong>
-          <span id="practicePanelLead">通常プレイとボス練習の両方で、スキル・進行・敵挙動を調整できます</span>
-          <label class="practice-select">
-            ボスHP
-            <select id="practiceBossHpSelect">
-              <option value="low">低め</option>
-              <option value="normal" selected>通常</option>
-              <option value="high">高め</option>
-              <option value="extreme">極高</option>
-            </select>
-          </label>
-          <label class="practice-select">
-            難易度
-            <select id="practiceDifficultySelect">
-              <option value="easy">イージー</option>
-              <option value="normal" selected>ノーマル</option>
-              <option value="hard">ハード</option>
-              <option value="gamer">ゲーマー</option>
-            </select>
-          </label>
-          <span>ボス練習 階層選択</span>
-          <div id="practiceStageList" class="practice-stage-list"></div>
-          <button id="practiceCopyLastButton" type="button">最後のプレイ状態をコピー</button>
-          <span>プレイヤー能力</span>
-          <div class="practice-skill-row">
-            <span>基礎HP</span>
-            <button id="practiceHpValue" class="practice-level-value" type="button">100</button>
-            <div class="practice-stepper">
-              <button id="practiceHpUp" type="button">+</button>
-              <button id="practiceHpDown" type="button">-</button>
+          <span id="practicePanelLead">通常プレイとボス練習の両方で、ステージ・敵・ボス・プレイヤーを個別に調整できます</span>
+          <section id="practiceStageSection" class="practice-panel-section">
+            <div class="practice-group-title">ステージ設定</div>
+            <label class="practice-select">
+              難易度
+              <select id="practiceDifficultySelect">
+                <option value="easy">イージー</option>
+                <option value="normal" selected>ノーマル</option>
+                <option value="hard">ハード</option>
+                <option value="gamer">ゲーマー</option>
+              </select>
+            </label>
+            <span>ボス練習 階層選択</span>
+            <div id="practiceStageList" class="practice-stage-list"></div>
+            <div id="practiceDevStageSection" class="practice-panel-subsection hidden">
+              <span>開発進行</span>
+              <div id="devStageControls" class="practice-skill-list"></div>
+              <span>開発トグル</span>
+              <div id="devToggleList" class="practice-skill-list"></div>
+              <span>プリセット / 保存</span>
+              <div id="devPresetList" class="practice-controls"></div>
             </div>
-          </div>
-          <div class="practice-skill-row">
-            <span>基礎攻撃力</span>
-            <button id="practiceBaseAttackValue" class="practice-level-value" type="button">+0</button>
-            <div class="practice-stepper">
-              <button id="practiceBaseAttackUp" type="button">+</button>
-              <button id="practiceBaseAttackDown" type="button">-</button>
-            </div>
-          </div>
-          <button id="practiceResetUnlockButton" class="practice-reset-button" type="button">スキル構成リセット</button>
-          <span>通常スキル</span>
-          <div id="practiceSkillList" class="practice-skill-list"></div>
-          <span>特殊スキル</span>
-          <div id="practiceRareList" class="practice-skill-list"></div>
-          <div id="practiceDevSection">
-            <span>開発進行</span>
-            <div id="devStageControls" class="practice-skill-list"></div>
-            <span>妨害攻撃</span>
-            <div id="practiceStatusList" class="practice-skill-list"></div>
-            <span>開発トグル</span>
-            <div id="devToggleList" class="practice-skill-list"></div>
+          </section>
+          <section id="practiceEnemySection" class="practice-panel-section hidden">
+            <div class="practice-group-title">敵設定</div>
             <span>敵出現制御</span>
             <div id="devEnemyToggleList" class="practice-skill-list"></div>
             <span>単体スポーン</span>
             <div id="devSpawnOneList" class="practice-controls"></div>
-            <span>ボス攻撃テスト</span>
-            <div id="devBossTestList" class="practice-skill-list"></div>
-            <span>現在値</span>
-            <div id="devRuntimeList" class="practice-skill-list"></div>
-            <span>プリセット / 保存</span>
-            <div id="devPresetList" class="practice-controls"></div>
-          </div>
+          </section>
+          <section id="practiceBossSection" class="practice-panel-section">
+            <div class="practice-group-title">ボス設定</div>
+            <label class="practice-select">
+              ボスHP
+              <select id="practiceBossHpSelect">
+                <option value="low">低め</option>
+                <option value="normal" selected>通常</option>
+                <option value="high">高め</option>
+                <option value="extreme">極高</option>
+              </select>
+            </label>
+            <div id="practiceDevBossSection" class="practice-panel-subsection hidden">
+              <span>妨害攻撃</span>
+              <div id="practiceStatusList" class="practice-skill-list"></div>
+              <span>ボス攻撃テスト</span>
+              <div id="devBossTestList" class="practice-skill-list"></div>
+            </div>
+          </section>
+          <section id="practicePlayerSection" class="practice-panel-section">
+            <div class="practice-group-title">プレイヤー調整</div>
+            <button id="practiceCopyLastButton" type="button">最後のプレイ状態をコピー</button>
+            <span>基礎能力</span>
+            <div class="practice-skill-row">
+              <span>基礎HP</span>
+              <button id="practiceHpValue" class="practice-level-value" type="button">100</button>
+              <div class="practice-stepper">
+                <button id="practiceHpUp" type="button">+</button>
+                <button id="practiceHpDown" type="button">-</button>
+              </div>
+            </div>
+            <div class="practice-skill-row">
+              <span>基礎攻撃力</span>
+              <button id="practiceBaseAttackValue" class="practice-level-value" type="button">+0</button>
+              <div class="practice-stepper">
+                <button id="practiceBaseAttackUp" type="button">+</button>
+                <button id="practiceBaseAttackDown" type="button">-</button>
+              </div>
+            </div>
+            <button id="practiceResetUnlockButton" class="practice-reset-button" type="button">スキル構成リセット</button>
+            <span>通常スキル</span>
+            <div id="practiceSkillList" class="practice-skill-list"></div>
+            <span>特殊スキル</span>
+            <div id="practiceRareList" class="practice-skill-list"></div>
+            <div id="practiceDevPlayerSection" class="practice-panel-subsection hidden">
+              <span>現在値</span>
+              <div id="devRuntimeList" class="practice-skill-list"></div>
+            </div>
+          </section>
         </div>
       </div>
 
@@ -240,21 +287,28 @@
     </section>
   </main>
 
+  <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-database-compat.js"></script>
+  <script src="firebase-config.js?v=20260425-02"></script>
   <script src="build-config.js?v=20260424-25"></script>
-  <script src="game.js?v=20260424-25"></script>
+  <script src="game.js?v=20260425-02"></script>
   <script src="difficulty.js?v=20260424-22"></script>
-  <script src="ui.js?v=20260424-24"></script>
-  <script src="practice.js?v=20260424-24"></script>
-  <script src="upgrades.js?v=20260424-24"></script>
+  <script src="ui.js?v=20260425-03"></script>
+  <script src="online_records.js?v=20260425-02"></script>
+  <script src="practice_player_build.js?v=20260425-01"></script>
+  <script src="practice_boss_tools.js?v=20260425-01"></script>
+  <script src="practice_dev_tools.js?v=20260425-01"></script>
+  <script src="practice.js?v=20260425-30"></script>
+  <script src="upgrades.js?v=20260424-25"></script>
   <script src="player.js?v=20260424-06"></script>
-  <script src="player_skills.js?v=20260424-24"></script>
-  <script src="boss_patterns.js?v=20260424-24"></script>
-  <script src="boss.js?v=20260424-06"></script>
-  <script src="enemy.js?v=20260424-24"></script>
+  <script src="player_skills.js?v=20260425-03"></script>
+  <script src="boss_patterns.js?v=20260424-25"></script>
+  <script src="boss.js?v=20260425-07"></script>
+  <script src="enemy.js?v=20260425-05"></script>
   <script src="render_world.js?v=20260424-20"></script>
   <script src="render_hud.js?v=20260424-19"></script>
   <script src="render.js?v=20260424-06"></script>
-  <script src="input.js?v=20260424-24"></script>
+  <script src="input.js?v=20260424-25"></script>
 </body>
 </html>
 

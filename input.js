@@ -92,9 +92,10 @@ adventureBackButton.addEventListener("click", () => switchStartMenu("home"));
 practiceMenuBackButton.addEventListener("click", () => switchStartMenu("home"));
 recordsBackButton.addEventListener("click", () => switchStartMenu("home"));
 practiceButton.addEventListener("click", startPracticeHub);
-if (practicePanelToggle) {
-  practicePanelToggle.addEventListener("click", togglePracticePanel);
-}
+practiceStageButton?.addEventListener("click", () => togglePracticePanelSection("stage"));
+practiceEnemyButton?.addEventListener("click", () => togglePracticePanelSection("enemy"));
+practiceBossButton?.addEventListener("click", () => togglePracticePanelSection("boss"));
+practicePlayerButton?.addEventListener("click", () => togglePracticePanelSection("player"));
 practiceBossHpSelect.addEventListener("change", () => setPracticeBossHpMode(practiceBossHpSelect.value));
 if (practiceDifficultySelect) {
   practiceDifficultySelect.addEventListener("change", () => setPracticeDifficulty(practiceDifficultySelect.value));

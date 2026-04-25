@@ -1,52 +1,55 @@
 ﻿function spawnBoss() {
-  const stage = currentStage();
-  state.stageState = "boss";
-  state.bossSpawned = true;
-  state.bossDefeated = false;
-  state.bossDoor = null;
-  state.stageIntroTimer = 1.8;
+  const stageConfig = currentStage();
+  const { combat, stage, practice, view } = state;
+  const player = combat.player;
+  const stageIndex = stage.stageIndex;
+  stage.stageState = "boss";
+  stage.bossSpawned = true;
+  stage.bossDefeated = false;
+  combat.bossDoor = null;
+  stage.stageIntroTimer = 1.8;
   replaceEnemies([]);
-  state.playerProjectiles = [];
-  state.enemyProjectiles = [];
-  state.pickups = [];
-  state.safeZones = [];
-  state.sanctuaryAttack = null;
-  state.smokeFans = [];
+  combat.playerProjectiles = [];
+  combat.enemyProjectiles = [];
+  combat.pickups = [];
+  combat.safeZones = [];
+  combat.sanctuaryAttack = null;
+  combat.smokeFans = [];
 
-  state.arena = {
-    x: state.player.x,
-    y: state.player.y,
+  combat.arena = {
+    x: player.x,
+    y: player.y,
     width: WIDTH - 70,
     height: HEIGHT - 120,
   };
 
-  state.camera.x = state.arena.x;
-  state.camera.y = state.arena.y;
-  const bossHp = (820 + state.stageIndex * 300) * stage.bossHp * 2 * (2 ** state.stageIndex)
-    * (state.practiceMode ? getPracticeBossHpMultiplier() : 1);
-  const bossSpeedScale = (1 + state.stageIndex * 0.16) * stage.bossSpeed;
-  const bossCooldownScale = Math.max(0.38, 1 - state.stageIndex * 0.14);
-  const bossDamageScale = 1 + state.stageIndex * 0.26;
-  const shieldMax = state.stageIndex === 4 ? bossHp * 0.22 : 0;
-  const shieldRegenDelay = state.stageIndex === 4 ? 15 : 6.8;
+  view.camera.x = combat.arena.x;
+  view.camera.y = combat.arena.y;
+  const bossHp = (820 + stageIndex * 300) * stageConfig.bossHp * 2 * (2 ** stageIndex)
+    * (practice.practiceMode ? getPracticeBossHpMultiplier() : 1);
+  const bossSpeedScale = (1 + stageIndex * 0.16) * stageConfig.bossSpeed;
+  const bossCooldownScale = Math.max(0.38, 1 - stageIndex * 0.14);
+  const bossDamageScale = 1 + stageIndex * 0.26;
+  const shieldMax = stageIndex === 4 ? bossHp * 0.22 : 0;
+  const shieldRegenDelay = stageIndex === 4 ? 15 : 6.8;
 
   addEnemy({
     type: "boss",
-    x: state.player.x,
-    y: state.player.y - 170,
-    drawRadius: 38 + state.stageIndex * 2,
-    hitRadius: 24 + state.stageIndex * 1.4,
-    speed: (88 + state.stageIndex * 8) * bossSpeedScale,
+    x: player.x,
+    y: player.y - 170,
+    drawRadius: 38 + stageIndex * 2,
+    hitRadius: 24 + stageIndex * 1.4,
+    speed: (88 + stageIndex * 8) * bossSpeedScale,
     hp: bossHp,
     maxHp: bossHp,
-    damage: (20 + state.stageIndex * 4) * stage.bossDamage * bossDamageScale,
+    damage: (20 + stageIndex * 4) * stageConfig.bossDamage * bossDamageScale,
     color: "#ffcf5c",
-    attackTimer: Math.max(0.5, 1.2 - state.stageIndex * 0.12),
+    attackTimer: Math.max(0.5, 1.2 - stageIndex * 0.12),
     attackIndex: 0,
-    cooldownBase: Math.max(0.44, stage.bossCooldown * bossCooldownScale),
-    hazardTimer: Math.max(1.1, 2.6 - state.stageIndex * 0.25),
+    cooldownBase: Math.max(0.44, stageConfig.bossCooldown * bossCooldownScale),
+    hazardTimer: Math.max(1.1, 2.6 - stageIndex * 0.25),
     hazardIndex: 0,
-    summonTimer: state.stageIndex === 3 ? 3.8 : 0,
+    summonTimer: stageIndex === 3 ? 3.8 : 0,
     shield: shieldMax,
     shieldMax,
     shieldBaseMax: shieldMax,
@@ -66,15 +69,17 @@
 }
 
 function getBossShieldRegenDelay(boss) {
-  if (state.stageIndex !== 4) return boss.shieldRegenDelay ?? 6.8;
+  const { stage } = state;
+  if (stage.stageIndex !== 4) return boss.shieldRegenDelay ?? 6.8;
   if ((boss.shieldBreakCount ?? 0) <= 1) return 15;
   if (boss.shieldBreakCount === 2) return 9;
   return 0;
 }
 
 function getBossNextShieldMax(boss) {
+  const { stage } = state;
   const base = boss.shieldBaseMax ?? boss.shieldMax ?? 0;
-  if (state.stageIndex !== 4) return base;
+  if (stage.stageIndex !== 4) return base;
   if ((boss.shieldBreakCount ?? 0) === 1) return base * 0.5;
   if (boss.shieldBreakCount === 2) return base * 0.25;
   return 0;
@@ -91,16 +96,19 @@ function handleBossShieldBreak(boss) {
 }
 
 function isFifthBossHalfHpHazard(boss) {
-  return state.stageIndex === 4 && (boss.fifthIntermissionTriggered || boss.hp <= boss.maxHp / 2);
+  const { stage } = state;
+  return stage.stageIndex === 4 && (boss.fifthIntermissionTriggered || boss.hp <= boss.maxHp / 2);
 }
 
 function spawnFifthBossCornerElite(x, y) {
-  const stage = currentStage();
-  const baseHp = (30 + state.stageIndex * 10 + state.time * 0.55) * stage.enemyHp;
-  const largePower = 1 + state.stageIndex * 0.22;
+  const stageConfig = currentStage();
+  const { stage, run } = state;
+  const stageIndex = stage.stageIndex;
+  const baseHp = (30 + stageIndex * 10 + run.time * 0.55) * stageConfig.enemyHp;
+  const largePower = 1 + stageIndex * 0.22;
   const hp = baseHp * 5 * 2 * largePower;
-  const damage = (10 + state.stageIndex * 2) * stage.enemyDamage * 1.25 * (1 + state.stageIndex * 0.08);
-  const xp = (8 + state.stageIndex * 2) * 3 * (2.2 + state.stageIndex * 0.22) * getDifficultyXpMultiplier();
+  const damage = (10 + stageIndex * 2) * stageConfig.enemyDamage * 1.25 * (1 + stageIndex * 0.08);
+  const xp = (8 + stageIndex * 2) * 3 * (2.2 + stageIndex * 0.22) * getDifficultyXpMultiplier();
 
   addEnemy({
     type: "mob",
@@ -112,7 +120,7 @@ function spawnFifthBossCornerElite(x, y) {
     y,
     drawRadius: 28,
     hitRadius: 18,
-    speed: 72 + state.stageIndex * 5,
+    speed: 72 + stageIndex * 5,
     hp,
     maxHp: hp,
     damage,
@@ -133,7 +141,7 @@ function spawnFifthBossCornerElite(x, y) {
     slashArc: 0,
     slashTriggerRange: 0,
     preferredDistance: 0,
-    attackRange: 430 + state.stageIndex * 22,
+    attackRange: 430 + stageIndex * 22,
   });
 
   addBurst({
@@ -148,9 +156,10 @@ function spawnFifthBossCornerElite(x, y) {
 }
 
 function startFifthBossIntermission(boss) {
-  if (!state.arena) return;
+  const { combat } = state;
+  if (!combat.arena) return;
 
-  const arena = state.arena;
+  const arena = combat.arena;
   const margin = 78;
   const left = arena.x - arena.width / 2 + margin;
   const right = arena.x + arena.width / 2 - margin;
@@ -167,8 +176,8 @@ function startFifthBossIntermission(boss) {
   boss.phase = null;
   boss.hazardIndex = 0;
   boss.hazardTimer = 0.28;
-  state.enemyProjectiles = [];
-  state.safeZones = [];
+  combat.enemyProjectiles = [];
+  combat.safeZones = [];
 
   addBurst({
     kind: "ring",
@@ -187,12 +196,13 @@ function startFifthBossIntermission(boss) {
 }
 
 function finishFifthBossIntermission(boss) {
+  const { combat } = state;
   const healAmount = boss.maxHp * 0.125 * countFifthBossElites();
   if (healAmount > 0) {
     boss.hp = Math.min(boss.maxHp, boss.hp + healAmount);
   }
 
-  replaceEnemies(state.enemies.filter((enemy) => !enemy.fifthBossElite));
+  replaceEnemies(combat.enemies.filter((enemy) => !enemy.fifthBossElite));
   boss.x = boss.fifthReturnX || boss.x;
   boss.y = boss.fifthReturnY || boss.y;
   boss.hidden = false;
@@ -214,7 +224,8 @@ function finishFifthBossIntermission(boss) {
 }
 
 function updateFifthBossIntermission(boss, dt) {
-  if (state.stageIndex !== 4) return false;
+  const { stage } = state;
+  if (stage.stageIndex !== 4) return false;
 
   if (!boss.fifthIntermissionTriggered && boss.hp <= boss.maxHp / 2) {
     startFifthBossIntermission(boss);
@@ -238,11 +249,13 @@ function updateFifthBossIntermission(boss, dt) {
 
 
 function spawnBossDoor() {
-  const angle = state.player.aimAngle || -Math.PI / 2;
+  const { combat } = state;
+  const player = combat.player;
+  const angle = player.aimAngle || -Math.PI / 2;
   const distanceToDoor = 250;
-  state.bossDoor = {
-    x: state.player.x + Math.cos(angle) * distanceToDoor,
-    y: state.player.y + Math.sin(angle) * distanceToDoor,
+  combat.bossDoor = {
+    x: player.x + Math.cos(angle) * distanceToDoor,
+    y: player.y + Math.sin(angle) * distanceToDoor,
     drawRadius: 34,
     hitRadius: 28,
     pulse: 0,
@@ -250,8 +263,8 @@ function spawnBossDoor() {
 
   addBurst({
     kind: "ring",
-    x: state.bossDoor.x,
-    y: state.bossDoor.y,
+    x: combat.bossDoor.x,
+    y: combat.bossDoor.y,
     radius: 58,
     life: 0.45,
     maxLife: 0.45,
@@ -260,16 +273,23 @@ function spawnBossDoor() {
 }
 
 function prepareBossDoor() {
-  if (state.stageState !== "wave") return;
+  const { run, stage } = state;
+  if (stage.stageState !== "wave") return;
 
-  state.stageState = "door";
-  state.stageIntroTimer = 2;
-  state.spawnTimer = 0;
+  stage.stageState = "door";
+  stage.stageIntroTimer = 2;
+  run.spawnTimer = 0;
   absorbXpGemsToPlayer();
   spawnBossDoor();
 }
 
 function updateBoss(enemy, dt) {
+  const { combat, stage } = state;
+  const player = combat.player;
+  const arena = combat.arena;
+  const safeZones = combat.safeZones;
+  const stageIndex = stage.stageIndex;
+  const bossMovementFrozen = isTheWorldActive(player);
   if (updateFifthBossIntermission(enemy, dt)) {
     return;
   }
@@ -285,17 +305,21 @@ function updateBoss(enemy, dt) {
   }
 
   if (!enemy.phase) {
-    const angle = Math.atan2(state.player.y - enemy.y, state.player.x - enemy.x);
+    const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
     const desiredDistance = 170;
-    const dist = distance(enemy, state.player);
+    const dist = distance(enemy, player);
     const move = dist > desiredDistance ? 1 : -0.4;
-    enemy.x += Math.cos(angle) * enemy.speed * move * dt;
-    enemy.y += Math.sin(angle) * enemy.speed * move * dt;
+    if (!bossMovementFrozen) {
+      enemy.x += Math.cos(angle) * enemy.speed * move * dt;
+      enemy.y += Math.sin(angle) * enemy.speed * move * dt;
+    }
     enemy.attackTimer -= dt;
     if (enemy.attackTimer <= 0) {
       startBossPattern(enemy);
     }
-    collideEnemyWithPlayer(enemy, enemy.damage * 0.5);
+    if (!bossMovementFrozen) {
+      collideEnemyWithPlayer(enemy, enemy.damage * 0.5);
+    }
     return;
   }
 
@@ -303,10 +327,10 @@ function updateBoss(enemy, dt) {
   phase.timer -= dt;
 
   if (phase.type === "chargeWindup") {
-    phase.angle = Math.atan2(state.player.y - enemy.y, state.player.x - enemy.x);
+    phase.angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
     if (phase.timer <= 0) {
-      const chargeDuration = 0.46 + state.stageIndex * 0.055;
-      const chargeSpeed = 620 + state.stageIndex * 90;
+      const chargeDuration = 0.46 + stageIndex * 0.055;
+      const chargeSpeed = 620 + stageIndex * 90;
       enemy.phase = {
         type: "charge",
         timer: chargeDuration,
@@ -319,9 +343,11 @@ function updateBoss(enemy, dt) {
   }
 
   if (phase.type === "charge") {
-    enemy.x += phase.vx * dt;
-    enemy.y += phase.vy * dt;
-    collideEnemyWithPlayer(enemy, enemy.damage * 1.1);
+    if (!bossMovementFrozen) {
+      enemy.x += phase.vx * dt;
+      enemy.y += phase.vy * dt;
+      collideEnemyWithPlayer(enemy, enemy.damage * 1.1);
+    }
     if (phase.timer <= 0) {
       enemy.phase = null;
       enemy.attackTimer = Math.max(0.44, enemy.cooldownBase - 0.12);
@@ -340,7 +366,7 @@ function updateBoss(enemy, dt) {
         maxLife: 0.24,
         color: "rgba(255,141,147,0.92)",
       });
-      if (distance(enemy, state.player) <= phase.radius + state.player.hitRadius) {
+      if (distance(enemy, player) <= phase.radius + player.hitRadius) {
         damagePlayer(enemy.damage * 1.35, enemy, 360);
       }
       enemy.phase = null;
@@ -351,21 +377,21 @@ function updateBoss(enemy, dt) {
 
   if (phase.type === "bounceVolley") {
     if (phase.timer <= 0) {
-      const aimed = Math.atan2(state.player.y - enemy.y, state.player.x - enemy.x);
+      const aimed = Math.atan2(player.y - enemy.y, player.x - enemy.x);
       const volleyScale = enemy.enraged ? 1.25 : 1;
-      const radialCount = Math.min(20, Math.ceil((8 + state.stageIndex * 2) * volleyScale));
-      const aimedCount = Math.min(8, Math.ceil((3 + state.stageIndex) * volleyScale));
+      const radialCount = Math.min(20, Math.ceil((8 + stageIndex * 2) * volleyScale));
+      const aimedCount = Math.min(8, Math.ceil((3 + stageIndex) * volleyScale));
       const maxBounces = enemy.enraged ? 3 : 2;
       for (let i = 0; i < radialCount; i += 1) {
         const angle = aimed + (Math.PI * 2 * i) / radialCount;
-        spawnEnemyProjectile(enemy.x, enemy.y, angle, 230 + state.stageIndex * 18, enemy.damage * 0.55, {
+        spawnEnemyProjectile(enemy.x, enemy.y, angle, 230 + stageIndex * 18, enemy.damage * 0.55, {
           maxBounces,
           damageLabel: "ボス反射弾",
         });
       }
       for (let i = 0; i < aimedCount; i += 1) {
         const offset = (i - (aimedCount - 1) / 2) * 0.16;
-        spawnEnemyProjectile(enemy.x, enemy.y, aimed + offset, 320 + state.stageIndex * 22, enemy.damage * 0.72, {
+        spawnEnemyProjectile(enemy.x, enemy.y, aimed + offset, 320 + stageIndex * 22, enemy.damage * 0.72, {
           drawRadius: 8,
           hitRadius: 7,
           maxBounces,
@@ -387,7 +413,7 @@ function updateBoss(enemy, dt) {
           phase.warningX,
           phase.warningY,
           phase.warningAngle,
-          470 + state.stageIndex * 24,
+          470 + stageIndex * 24,
           enemy.damage * 0.82,
           {
             drawRadius: 6,
@@ -408,7 +434,7 @@ function updateBoss(enemy, dt) {
       const orbitAngle = phase.orbitBase + (Math.PI * 2 * phase.thrown) / phase.count;
       phase.warningX = enemy.x + Math.cos(orbitAngle) * 62;
       phase.warningY = enemy.y + Math.sin(orbitAngle) * 62;
-      phase.warningAngle = Math.atan2(state.player.y - phase.warningY, state.player.x - phase.warningX);
+      phase.warningAngle = Math.atan2(player.y - phase.warningY, player.x - phase.warningX);
       phase.warningTimer = 0.16;
       return;
     }
@@ -422,25 +448,25 @@ function updateBoss(enemy, dt) {
 
   if (phase.type === "statusAttack") {
     if (phase.mode !== "darkZone") {
-      phase.x = state.player.x;
-      phase.y = state.player.y;
+      phase.x = player.x;
+      phase.y = player.y;
     }
     if (phase.timer <= 0) {
       if (phase.mode === "darkZone") {
-        addDarkZone(phase.orientation, phase.side, 3.4 + state.stageIndex * 0.18);
+        addDarkZone(phase.orientation, phase.side, 3.4 + stageIndex * 0.18);
       } else if (phase.mode === "reverseHorizontal") {
-        startReverseWarning("horizontal", 0.95, 3.1 + state.stageIndex * 0.15);
+        startReverseWarning("horizontal", 0.95, 3.1 + stageIndex * 0.15);
       } else if (phase.mode === "reverseVertical") {
-        startReverseWarning("vertical", 0.95, 3.1 + state.stageIndex * 0.15);
+        startReverseWarning("vertical", 0.95, 3.1 + stageIndex * 0.15);
       } else {
-        addBlinkBanZone(phase.x, phase.y, phase.radius, 4.2 + state.stageIndex * 0.18);
+        addBlinkBanZone(phase.x, phase.y, phase.radius, 4.2 + stageIndex * 0.18);
       }
       addBurst({
         kind: phase.mode === "darkZone" ? "rect" : "ring",
-        x: phase.mode === "darkZone" ? (state.arena?.x ?? enemy.x) : phase.x,
-        y: phase.mode === "darkZone" ? (state.arena?.y ?? enemy.y) : phase.y,
-        width: phase.mode === "darkZone" ? (state.arena?.width ?? WIDTH) : undefined,
-        height: phase.mode === "darkZone" ? (state.arena?.height ?? HEIGHT) : undefined,
+        x: phase.mode === "darkZone" ? (arena?.x ?? enemy.x) : phase.x,
+        y: phase.mode === "darkZone" ? (arena?.y ?? enemy.y) : phase.y,
+        width: phase.mode === "darkZone" ? (arena?.width ?? WIDTH) : undefined,
+        height: phase.mode === "darkZone" ? (arena?.height ?? HEIGHT) : undefined,
         radius: phase.radius,
         life: 0.26,
         maxLife: 0.26,
@@ -455,7 +481,7 @@ function updateBoss(enemy, dt) {
   }
 
   if (phase.type === "katanaWideWindup") {
-    phase.angle = Math.atan2(state.player.y - enemy.y, state.player.x - enemy.x);
+    phase.angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
     if (phase.timer <= 0) {
       const wideFan = {
         x: enemy.x,
@@ -475,20 +501,20 @@ function updateBoss(enemy, dt) {
         maxLife: 0.2,
         color: "rgba(244,241,222,0.95)",
       });
-      if (pointInBossFan(state.player, wideFan)) {
+      if (pointInBossFan(player, wideFan)) {
         damagePlayer(enemy.damage * 0.92, enemy, 260);
       }
 
       const oldX = enemy.x;
       const oldY = enemy.y;
-      const blinkDistance = state.player.hitRadius + enemy.hitRadius + 70;
-      enemy.x = state.player.x - Math.cos(phase.angle) * blinkDistance;
-      enemy.y = state.player.y - Math.sin(phase.angle) * blinkDistance;
-      if (state.arena) {
-        const halfWidth = state.arena.width / 2 - enemy.hitRadius;
-        const halfHeight = state.arena.height / 2 - enemy.hitRadius;
-        enemy.x = clamp(enemy.x, state.arena.x - halfWidth, state.arena.x + halfWidth);
-        enemy.y = clamp(enemy.y, state.arena.y - halfHeight, state.arena.y + halfHeight);
+      const blinkDistance = player.hitRadius + enemy.hitRadius + 70;
+      enemy.x = player.x - Math.cos(phase.angle) * blinkDistance;
+      enemy.y = player.y - Math.sin(phase.angle) * blinkDistance;
+      if (arena) {
+        const halfWidth = arena.width / 2 - enemy.hitRadius;
+        const halfHeight = arena.height / 2 - enemy.hitRadius;
+        enemy.x = clamp(enemy.x, arena.x - halfWidth, arena.x + halfWidth);
+        enemy.y = clamp(enemy.y, arena.y - halfHeight, arena.y + halfHeight);
       }
 
       addBurst({
@@ -514,7 +540,7 @@ function updateBoss(enemy, dt) {
         type: "katanaCloseWindup",
         timer: 0.14,
         total: 0.14,
-        angle: Math.atan2(state.player.y - enemy.y, state.player.x - enemy.x),
+        angle: Math.atan2(player.y - enemy.y, player.x - enemy.x),
         length: 170,
         width: 70,
       };
@@ -523,7 +549,7 @@ function updateBoss(enemy, dt) {
   }
 
   if (phase.type === "katanaCloseWindup") {
-    phase.angle = Math.atan2(state.player.y - enemy.y, state.player.x - enemy.x);
+    phase.angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
     if (phase.timer <= 0) {
       const closeSlash = {
         x: enemy.x,
@@ -543,9 +569,9 @@ function updateBoss(enemy, dt) {
         maxLife: 0.18,
         color: "rgba(255,48,79,0.96)",
       });
-      if (pointInBossSlash(state.player, closeSlash)) {
-        damagePlayer(enemy.damage * 1.55, enemy, 760 + state.stageIndex * 70);
-        state.player.stunTimer = Math.max(state.player.stunTimer, 0.58);
+      if (pointInBossSlash(player, closeSlash)) {
+        damagePlayer(enemy.damage * 1.55, enemy, 760 + stageIndex * 70);
+        player.stunTimer = Math.max(player.stunTimer, 0.58);
       }
       enemy.phase = null;
       enemy.attackTimer = Math.max(0.48, enemy.cooldownBase * 1.12);
@@ -554,7 +580,7 @@ function updateBoss(enemy, dt) {
   }
 
   if (phase.type === "sanctuary") {
-    if (!state.sanctuaryAttack) {
+    if (!combat.sanctuaryAttack) {
       enemy.phase = null;
       enemy.attackTimer = enemy.cooldownBase;
     }
@@ -563,7 +589,7 @@ function updateBoss(enemy, dt) {
 
   if (phase.type === "safeCircle" || phase.type === "safeRect") {
     if (phase.timer <= 0) {
-      for (const zone of state.safeZones) {
+      for (const zone of safeZones) {
         if (!zone.resolved) {
           zone.resolved = true;
           resolveSafeZone(zone);
@@ -588,7 +614,7 @@ function updateBoss(enemy, dt) {
         angle: phase.angle,
         radius: phase.radius,
         arc: phase.arc,
-        width: 72 + state.stageIndex * 5,
+        width: 72 + stageIndex * 5,
         hit: false,
       };
     }
@@ -608,12 +634,12 @@ function updateBoss(enemy, dt) {
       width: phase.width,
     };
 
-    if (!phase.hit && pointInBossSlash(state.player, slash)) {
+    if (!phase.hit && pointInBossSlash(player, slash)) {
       phase.hit = true;
-      damagePlayer(enemy.damage * 1.65, enemy, 650 + state.stageIndex * 120);
-      const sweepPush = 360 + state.stageIndex * 95;
-      state.player.knockbackX += -Math.sin(sweepAngle) * sweepPush;
-      state.player.knockbackY += Math.cos(sweepAngle) * sweepPush;
+      damagePlayer(enemy.damage * 1.65, enemy, 650 + stageIndex * 120);
+      const sweepPush = 360 + stageIndex * 95;
+      player.knockbackX += -Math.sin(sweepAngle) * sweepPush;
+      player.knockbackY += Math.cos(sweepAngle) * sweepPush;
     }
 
     if (phase.timer <= 0) {
@@ -636,10 +662,13 @@ function updateBoss(enemy, dt) {
 }
 
 function updateBossDoor(dt) {
-  if (!state.bossDoor) return;
+  const { combat } = state;
+  const player = combat.player;
+  const bossDoor = combat.bossDoor;
+  if (!bossDoor) return;
 
-  state.bossDoor.pulse += dt * 3.8;
-  if (distance(state.player, state.bossDoor) <= state.player.hitRadius + state.bossDoor.hitRadius) {
+  bossDoor.pulse += dt * 3.8;
+  if (distance(player, bossDoor) <= player.hitRadius + bossDoor.hitRadius) {
     spawnBoss();
   }
 }

@@ -1,12 +1,18 @@
 ﻿function updateNaturalForce(dt) {
-  const player = state.player;
+  const { combat } = state;
+  const player = combat.player;
   if (!player || player.naturalForceLevel <= 0 || player.hp >= player.maxHp) return;
 
   const regenPerSecond = player.maxHp * player.naturalForceRegenRate;
   player.hp = Math.min(player.maxHp, player.hp + regenPerSecond * dt);
 }
 
-function isLaserBeamActive(player = state.player) {
+function getCombatPlayer() {
+  const { combat } = state;
+  return combat.player;
+}
+
+function isLaserBeamActive(player = getCombatPlayer()) {
   return Boolean(player && player.laserBeamActiveTimer > 0);
 }
 
@@ -48,7 +54,7 @@ function activateLaserBeam(player) {
 }
 
 function updateLaserBeam(dt) {
-  const player = state.player;
+  const player = getCombatPlayer();
   if (!player || player.laserBeamLevel <= 0) return;
 
   if (player.laserBeamActiveTimer > 0) {
@@ -68,8 +74,9 @@ function updateLaserBeam(dt) {
 }
 
 function startReload() {
-  if (!state.player || !state.running || state.paused) return;
-  const player = state.player;
+  const { combat, run } = state;
+  if (!combat.player || !run.running || run.paused) return;
+  const player = combat.player;
   if (player.reloading || player.ammo >= player.maxAmmo) return;
   player.reloading = true;
   player.currentReloadDuration = getEffectiveReloadDuration(player);
@@ -77,29 +84,31 @@ function startReload() {
 }
 
 function cancelReload() {
-  if (!state.player) return;
-  state.player.reloading = false;
-  state.player.reloadTimer = 0;
-  state.player.currentReloadDuration = state.player.reloadDuration;
+  const { combat } = state;
+  const player = combat.player;
+  if (!player) return;
+  player.reloading = false;
+  player.reloadTimer = 0;
+  player.currentReloadDuration = player.reloadDuration;
 }
 
 function scaledCombatDamage(baseAmount, bonusAmount = 0) {
-  return baseAmount * (state.player?.damageMultiplier ?? 1) + bonusAmount;
+  return baseAmount * (getCombatPlayer()?.damageMultiplier ?? 1) + bonusAmount;
 }
 
-function getGunDamage(player = state.player) {
+function getGunDamage(player = getCombatPlayer()) {
   return scaledCombatDamage(player.baseGunDamage, player.gunDamageBonus);
 }
 
-function getSkillShotDamage(player = state.player) {
+function getSkillShotDamage(player = getCombatPlayer()) {
   return scaledCombatDamage(player.baseSkillShotDamage, player.skillShotDamageBonus);
 }
 
-function getStrongSlashDamage(player = state.player) {
+function getStrongSlashDamage(player = getCombatPlayer()) {
   return scaledCombatDamage(player.baseStrongSlashDamage, player.strongSlashDamageBonus);
 }
 
-function getExplosionChainDamage(player = state.player) {
+function getExplosionChainDamage(player = getCombatPlayer()) {
   return scaledCombatDamage(player.baseExplosionChainDamage, player.explosionChainDamageBonus);
 }
 
@@ -108,7 +117,7 @@ function getTheWorldDuration(level) {
   return durations[Math.min(4, Math.max(0, level))] ?? 0;
 }
 
-function isTheWorldActive(player = state.player) {
+function isTheWorldActive(player = getCombatPlayer()) {
   return Boolean(player && player.theWorldActiveTimer > 0);
 }
 
@@ -143,12 +152,14 @@ function activateTheWorld(player) {
 }
 
 function chooseCriticalLanceTarget(usedTargets = new Set()) {
+  const { combat } = state;
+  const player = combat.player;
   let best = null;
   let bestDist = Infinity;
-  for (const enemy of state.enemies) {
+  for (const enemy of combat.enemies) {
     if (enemy.hidden || enemy.hp <= 0) continue;
     if (usedTargets.has(enemy)) continue;
-    const dist = distance(enemy, state.player);
+    const dist = distance(enemy, player);
     if (dist < bestDist) {
       bestDist = dist;
       best = enemy;
@@ -159,7 +170,7 @@ function chooseCriticalLanceTarget(usedTargets = new Set()) {
 }
 
 function launchCriticalLance(volley, spear) {
-  const player = state.player;
+  const player = getCombatPlayer();
   const target = chooseCriticalLanceTarget(volley.usedTargets);
   const angle = target
     ? Math.atan2(target.y - player.y, target.x - player.x)
@@ -205,7 +216,8 @@ function activateCriticalLance(player) {
   player.criticalLanceTimer = player.criticalLanceCooldown;
   player.criticalLanceExecutionThreshold = getCriticalLanceExecutionThreshold(player.criticalLanceLevel);
   player.criticalLanceLaunchInterval = getCriticalLanceLaunchInterval(player.criticalLanceLevel);
-  state.lanceVolley = {
+  const { combat } = state;
+  combat.lanceVolley = {
     timer: 0,
     usedTargets: new Set(),
     spears: Array.from({ length: 5 }, (_, index) => ({
@@ -218,7 +230,8 @@ function activateCriticalLance(player) {
 }
 
 function updateCriticalLanceVolley(dt) {
-  const volley = state.lanceVolley;
+  const { combat } = state;
+  const volley = combat.lanceVolley;
   if (!volley) return;
 
   volley.timer += dt;
@@ -234,13 +247,14 @@ function updateCriticalLanceVolley(dt) {
   }
 
   if (activeCount <= 0) {
-    state.lanceVolley = null;
+    combat.lanceVolley = null;
   }
 }
 
 function tryUseRainbowSkill() {
-  if (!state.running || state.paused) return;
-  const player = state.player;
+  const { combat, run } = state;
+  if (!run.running || run.paused) return;
+  const player = combat.player;
   if (!player?.rainbowSkillChoice) return;
 
   if (player.rainbowSkillChoice === "theWorld") {
@@ -250,26 +264,28 @@ function tryUseRainbowSkill() {
   }
 
   if (player.rainbowSkillChoice === "criticalLance") {
-    if (player.criticalLanceLevel <= 0 || player.criticalLanceTimer > 0 || state.lanceVolley) return;
+    if (player.criticalLanceLevel <= 0 || player.criticalLanceTimer > 0 || combat.lanceVolley) return;
     activateCriticalLance(player);
   }
 }
 
 function getMouseAimAngle() {
+  const { combat, view } = state;
   updateMouseWorld();
-  const player = state.player;
-  return Math.atan2(state.mouse.worldY - player.y, state.mouse.worldX - player.x);
+  const player = combat.player;
+  return Math.atan2(view.mouse.worldY - player.y, view.mouse.worldX - player.x);
 }
 
 function getPrimaryFireAngle() {
-  const player = state.player;
+  const { combat, view } = state;
+  const player = combat.player;
   if (player.autoAttack) {
     const target = chooseTarget();
     if (target) {
       return Math.atan2(target.y - player.y, target.x - player.x);
     }
 
-    if (!state.mouse.down) {
+    if (!view.mouse.down) {
       return null;
     }
   }
@@ -278,8 +294,9 @@ function getPrimaryFireAngle() {
 }
 
 function tryFirePrimary() {
-  if (!state.running || state.paused) return;
-  const player = state.player;
+  const { combat, run } = state;
+  if (!run.running || run.paused) return;
+  const player = combat.player;
   if (player.reloading || player.fireTimer > 0) return;
   if (player.ammo <= 0) {
     startReload();
@@ -316,8 +333,9 @@ function tryFirePrimary() {
 }
 
 function tryUseSkillShot() {
-  if (!state.running || state.paused) return;
-  const player = state.player;
+  const { combat, run } = state;
+  if (!run.running || run.paused) return;
+  const player = combat.player;
   if (!player.hasSkillShot || player.skillShotTimer > 0) return;
   const angle = getMouseAimAngle();
   player.aimAngle = angle;
@@ -343,13 +361,15 @@ function tryUseSkillShot() {
 }
 
 function queueChainExplosion(x, y, radius, damage, chainDepth, chainGeneration) {
+  const { combat } = state;
+  const chainExplosionQueue = combat.chainExplosionQueue;
   if (chainDepth <= 0 || damage <= 0) return;
 
-  if (state.chainExplosionQueue.length >= MAX_PENDING_CHAIN_EXPLOSIONS) {
-    state.chainExplosionQueue.shift();
+  if (chainExplosionQueue.length >= MAX_PENDING_CHAIN_EXPLOSIONS) {
+    chainExplosionQueue.shift();
   }
 
-  state.chainExplosionQueue.push({
+  chainExplosionQueue.push({
     x,
     y,
     radius,
@@ -361,9 +381,11 @@ function queueChainExplosion(x, y, radius, damage, chainDepth, chainGeneration) 
 }
 
 function updateChainExplosions() {
-  const count = Math.min(MAX_CHAIN_EXPLOSIONS_PER_FRAME, state.chainExplosionQueue.length);
+  const { combat } = state;
+  const chainExplosionQueue = combat.chainExplosionQueue;
+  const count = Math.min(MAX_CHAIN_EXPLOSIONS_PER_FRAME, chainExplosionQueue.length);
   for (let i = 0; i < count; i += 1) {
-    const queued = state.chainExplosionQueue.shift();
+    const queued = chainExplosionQueue.shift();
     explodeAt(queued.x, queued.y, queued.radius, queued.damage, {
       chainExplosion: true,
       chainDepth: queued.chainDepth,
@@ -374,6 +396,8 @@ function updateChainExplosions() {
 }
 
 function explodeAt(x, y, radius, damage, options = {}) {
+  const { combat } = state;
+  const enemies = combat.enemies;
   const chainGeneration = options.chainGeneration ?? 0;
   const visualLife = chainGeneration > 0 ? 0.13 : 0.18;
   const explosionColor = chainGeneration > 0
@@ -392,8 +416,8 @@ function explodeAt(x, y, radius, damage, options = {}) {
   });
 
   const killed = [];
-  for (let i = state.enemies.length - 1; i >= 0; i -= 1) {
-    const enemy = state.enemies[i];
+  for (let i = enemies.length - 1; i >= 0; i -= 1) {
+    const enemy = enemies[i];
     if (enemy.hidden) continue;
     if (distance({ x, y }, enemy) <= radius + enemy.hitRadius) {
       damageEnemy(enemy, damage, options.damageType ?? (chainGeneration > 0 ? "爆発連鎖" : "爆弾"));
@@ -406,7 +430,7 @@ function explodeAt(x, y, radius, damage, options = {}) {
 
   if (!options.chainExplosion || options.chainDepth <= 0) return;
 
-  const player = state.player;
+  const player = combat.player;
   const chainRadius = Math.max(42, radius * 0.72);
   const chainChance = chainGeneration === 0
     ? Math.min(0.86, 0.5 + player.explosionChainLevel * 0.08)
@@ -428,7 +452,7 @@ function explodeAt(x, y, radius, damage, options = {}) {
 }
 
 function fireSlashWaves(angle) {
-  const player = state.player;
+  const player = getCombatPlayer();
   if (player.waveSlashLevel <= 0 || player.waveSlashCount <= 0) return;
 
   const count = Math.min(MAX_WAVE_SLASH_PROJECTILES, player.waveSlashCount);
@@ -456,8 +480,9 @@ function fireSlashWaves(angle) {
 }
 
 function useStrongSlash() {
-  if (!state.running || state.paused) return;
-  const player = state.player;
+  const { combat, run } = state;
+  const player = combat.player;
+  if (!run.running || run.paused) return;
   if (!player.hasStrongSlash || !player.strongSlashReady) return;
 
   player.strongSlashReady = false;
@@ -478,8 +503,8 @@ function useStrongSlash() {
     color: "rgba(255,230,147,0.96)",
   });
 
-  for (let i = state.enemies.length - 1; i >= 0; i -= 1) {
-    const enemy = state.enemies[i];
+  for (let i = combat.enemies.length - 1; i >= 0; i -= 1) {
+    const enemy = combat.enemies[i];
     if (enemy.hidden) continue;
     const dist = distance(player, enemy);
     const targetAngle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
@@ -497,7 +522,8 @@ function useStrongSlash() {
 }
 
 function handleBlink() {
-  const player = state.player;
+  const { combat, status } = state;
+  const player = combat.player;
   if (!player.hasBlink || player.blinkTimer > 0 || !keys.has("Space")) return;
   if (isPlayerInBlinkBanZone()) {
     keys.delete("Space");
@@ -515,8 +541,8 @@ function handleBlink() {
 
   let vx = getMoveAxis("ArrowLeft", "ArrowRight") + getMoveAxis("KeyA", "KeyD");
   let vy = getMoveAxis("ArrowUp", "ArrowDown") + getMoveAxis("KeyW", "KeyS");
-  if (state.reverseHorizontalTimer > 0) vx *= -1;
-  if (state.reverseVerticalTimer > 0) vy *= -1;
+  if (status.reverseHorizontalTimer > 0) vx *= -1;
+  if (status.reverseVerticalTimer > 0) vy *= -1;
   if (vx === 0 && vy === 0) {
     vx = Math.cos(player.aimAngle);
     vy = Math.sin(player.aimAngle);
@@ -541,15 +567,16 @@ function handleBlink() {
 }
 
 function triggerLightningFrom(originEnemy) {
-  const player = state.player;
+  const { combat } = state;
+  const player = combat.player;
   if (
     player.lightningLevel <= 0
     || player.lightningChains <= 0
     || player.lightningTimer > 0
-    || state.enemies.length === 0
+    || combat.enemies.length === 0
   ) return;
 
-  const available = state.enemies.filter((enemy) => enemy !== originEnemy && !enemy.hidden && enemy.hp > 0);
+  const available = combat.enemies.filter((enemy) => enemy !== originEnemy && !enemy.hidden && enemy.hp > 0);
   const hits = [];
   let chainFrom = originEnemy;
   const maxHits = Math.min(player.lightningChains, available.length);
@@ -588,15 +615,16 @@ function triggerLightningFrom(originEnemy) {
     previous = enemy;
   }
 
-  for (let i = state.enemies.length - 1; i >= 0; i -= 1) {
-    if (state.enemies[i].hp <= 0) {
+  for (let i = combat.enemies.length - 1; i >= 0; i -= 1) {
+    if (combat.enemies[i].hp <= 0) {
       defeatEnemy(i);
     }
   }
 }
 
 function updateThunderZone(dt) {
-  const player = state.player;
+  const { combat } = state;
+  const player = combat.player;
   if (!player || player.thunderZoneLevel <= 0 || player.lightningMarkLevel <= 0) return;
 
   player.thunderZoneTimer -= dt;
@@ -605,7 +633,7 @@ function updateThunderZone(dt) {
   player.thunderZoneTimer = 1;
   const radius = player.thunderZoneRadius || 130;
   let marked = 0;
-  for (const enemy of state.enemies) {
+  for (const enemy of combat.enemies) {
     if (enemy.hidden || enemy.hp <= 0) continue;
     if (distance(player, enemy) <= radius + enemy.hitRadius) {
       applyLightningMark(enemy);
@@ -627,7 +655,8 @@ function updateThunderZone(dt) {
 }
 
 function gainXp(amount) {
-  const player = state.player;
+  const { combat, run, stage } = state;
+  const player = combat.player;
   player.xp += amount;
   let levelUps = 0;
   while (player.xp >= player.nextXp) {
@@ -638,15 +667,16 @@ function gainXp(amount) {
   }
 
   if (levelUps > 0) {
-    state.pendingLevelUps += levelUps;
-    if (!state.paused && upgradeOverlay.classList.contains("hidden") && areDevLevelChoicesEnabled()) {
+    stage.pendingLevelUps += levelUps;
+    if (!run.paused && upgradeOverlay.classList.contains("hidden") && areDevLevelChoicesEnabled()) {
       openQueuedLevelUpgrade();
     }
   }
 }
 
 function addXpGem(x, y, xp) {
-  state.pickups.push({
+  const { combat } = state;
+  combat.pickups.push({
     kind: "xp",
     x,
     y,
@@ -658,7 +688,9 @@ function addXpGem(x, y, xp) {
 }
 
 function absorbXpGemsToPlayer() {
-  const gems = state.pickups.filter((pickup) => pickup.kind === "xp");
+  const { combat } = state;
+  const player = combat.player;
+  const gems = combat.pickups.filter((pickup) => pickup.kind === "xp");
   if (!gems.length) return;
 
   let totalXp = 0;
@@ -670,8 +702,8 @@ function absorbXpGemsToPlayer() {
         kind: "line",
         fromX: gem.x,
         fromY: gem.y,
-        toX: state.player.x,
-        toY: state.player.y,
+        toX: player.x,
+        toY: player.y,
         life: 0.28,
         maxLife: 0.28,
         color: "rgba(255,244,125,0.95)",
@@ -679,7 +711,7 @@ function absorbXpGemsToPlayer() {
     }
   }
 
-  state.pickups = state.pickups.filter((pickup) => pickup.kind !== "xp");
+  combat.pickups = combat.pickups.filter((pickup) => pickup.kind !== "xp");
   gainXp(totalXp);
 }
 
@@ -691,7 +723,9 @@ function collectPickup(pickup) {
   }
 
   if (pickup.kind === "heal") {
-    state.player.hp = Math.min(state.player.maxHp, state.player.hp + pickup.amount);
+    const { combat } = state;
+    const player = combat.player;
+    player.hp = Math.min(player.maxHp, player.hp + pickup.amount);
     return;
   }
 

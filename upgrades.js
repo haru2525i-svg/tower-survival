@@ -713,7 +713,8 @@ function applyPracticeRareSkills(player) {
         typeof getPracticeSpecialMaxLevel === "function" ? getPracticeSpecialMaxLevel(upgrade) : getUpgradeMaxLevel(upgrade),
       );
       if (targetLevel <= 0) continue;
-      if (upgrade.available && !upgrade.available(player)) continue;
+      const bypassDevPracticeAvailability = isDevBuild() && upgrade.rainbow;
+      if (upgrade.available && !upgrade.available(player) && !bypassDevPracticeAvailability) continue;
 
       const currentLevel = getUpgradeLevel(upgrade, player);
       if (currentLevel >= targetLevel) continue;

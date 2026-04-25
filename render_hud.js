@@ -232,7 +232,7 @@ function drawUiHints() {
     ctx.fillText(`リロード中 ${player.reloadTimer.toFixed(1)}秒`, WIDTH / 2 - 64, HEIGHT - 46);
   }
 
-  if (state.stageState === "door") {
+  if (state.stageState === "door" || (state.stageState === "wave" && state.bossDoor)) {
     ctx.fillStyle = "rgba(255, 211, 107, 0.92)";
     ctx.font = "bold 17px Segoe UI";
     ctx.fillText("ボス扉に入ると戦闘開始", WIDTH / 2 - 98, 62);

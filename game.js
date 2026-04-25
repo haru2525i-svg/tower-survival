@@ -39,18 +39,31 @@ const adventureBackButton = document.getElementById("adventureBackButton");
 const practiceMenuBackButton = document.getElementById("practiceMenuBackButton");
 const recordsBackButton = document.getElementById("recordsBackButton");
 const practiceMenuStatus = document.getElementById("practiceMenuStatus");
+const clearSummaryList = document.getElementById("clearSummaryList");
+const onlineRankingList = document.getElementById("onlineRankingList");
 const historyList = document.getElementById("historyList");
+const playerNameInput = document.getElementById("playerNameInput");
 const practiceButton = document.getElementById("practiceButton");
 const practicePanel = document.getElementById("practicePanel");
 const practicePanelTitle = document.getElementById("practicePanelTitle");
 const practicePanelLead = document.getElementById("practicePanelLead");
-const practicePanelToggle = document.getElementById("practicePanelToggle");
+const practicePanelButtons = document.getElementById("practicePanelButtons");
+const practiceStageButton = document.getElementById("practiceStageButton");
+const practiceEnemyButton = document.getElementById("practiceEnemyButton");
+const practiceBossButton = document.getElementById("practiceBossButton");
+const practicePlayerButton = document.getElementById("practicePlayerButton");
 const practiceBossHpSelect = document.getElementById("practiceBossHpSelect");
 const practiceDifficultySelect = document.getElementById("practiceDifficultySelect");
 const practiceCopyLastButton = document.getElementById("practiceCopyLastButton");
 const practiceStageList = document.getElementById("practiceStageList");
+const practiceStageSection = document.getElementById("practiceStageSection");
 const practiceStatusList = document.getElementById("practiceStatusList");
-const practiceDevSection = document.getElementById("practiceDevSection");
+const practiceDevStageSection = document.getElementById("practiceDevStageSection");
+const practiceEnemySection = document.getElementById("practiceEnemySection");
+const practiceBossSection = document.getElementById("practiceBossSection");
+const practiceDevBossSection = document.getElementById("practiceDevBossSection");
+const practicePlayerSection = document.getElementById("practicePlayerSection");
+const practiceDevPlayerSection = document.getElementById("practiceDevPlayerSection");
 const devStageControls = document.getElementById("devStageControls");
 const devToggleList = document.getElementById("devToggleList");
 const devEnemyToggleList = document.getElementById("devEnemyToggleList");
@@ -151,7 +164,9 @@ const state = {
   bossDoor: null,
   practiceMode: false,
   practicePanelOpen: false,
+  practicePanelSection: null,
   practiceDoors: [],
+  practiceReturnToHub: false,
   practiceNormalLevels: {},
   practiceSpecialLevels: {},
   practiceStatusToggles: {
@@ -203,6 +218,128 @@ const state = {
   },
 };
 
+const STATE_SECTION_MAP = {
+  run: [
+    "running",
+    "paused",
+    "gameOver",
+    "won",
+    "time",
+    "spawnTimer",
+    "flash",
+    "difficultyKey",
+    "effectMode",
+    "startMenuSection",
+    "returnConfirmWasPaused",
+    "debugFps",
+  ],
+  stage: [
+    "stageIndex",
+    "stageKills",
+    "pendingLevelUps",
+    "stageState",
+    "stageIntroTimer",
+    "bossSpawned",
+    "bossDefeated",
+    "claimedBossRewards",
+    "nextSafeZoneGroupId",
+  ],
+  combat: [
+    "player",
+    "enemies",
+    "normalSpawnEnemyCount",
+    "fifthBossEliteCount",
+    "playerProjectiles",
+    "enemyProjectiles",
+    "pickups",
+    "bursts",
+    "burstAddsThisFrame",
+    "chainExplosionQueue",
+    "safeZones",
+    "sanctuaryAttack",
+    "smokeFans",
+    "blinkBanZones",
+    "lanceVolley",
+    "bossDoor",
+    "arena",
+    "damageStats",
+    "lastDamageCause",
+  ],
+  practice: [
+    "practiceMode",
+    "practicePanelOpen",
+    "practicePanelSection",
+    "practiceDoors",
+    "practiceReturnToHub",
+    "practiceNormalLevels",
+    "practiceSpecialLevels",
+    "practiceStatusToggles",
+    "practiceBossHpMode",
+    "practiceDifficultyKey",
+    "practiceBaseHp",
+    "practiceBaseAttackBonus",
+    "practiceFirepowerLevel",
+    "practiceHealthLevel",
+    "devSettings",
+  ],
+  ui: [
+    "lastRunSnapshot",
+    "runHistory",
+    "hiddenRainbowAnnouncement",
+  ],
+  status: [
+    "inkTimer",
+    "inkStrength",
+    "darkZone",
+    "darkZoneInside",
+    "darkZoneTransitionFlash",
+    "reverseHorizontalTimer",
+    "reverseVerticalTimer",
+    "reverseWarningAxis",
+    "reverseWarningTimer",
+    "reversePendingDuration",
+  ],
+  progress: [
+    "hiddenRainbowUnlocked",
+    "practiceSkillUnlocks",
+    "difficultyUnlocks",
+  ],
+  view: [
+    "camera",
+    "mouse",
+  ],
+};
+
+attachStateSections(state, STATE_SECTION_MAP);
+
+function attachStateSections(target, sectionMap) {
+  for (const [sectionName, propertyNames] of Object.entries(sectionMap)) {
+    Object.defineProperty(target, sectionName, {
+      value: createStateSectionProxy(target, propertyNames),
+      enumerable: false,
+      configurable: false,
+      writable: false,
+    });
+  }
+}
+
+function createStateSectionProxy(target, propertyNames) {
+  const section = {};
+  for (const propertyName of propertyNames) {
+    Object.defineProperty(section, propertyName, {
+      enumerable: true,
+      configurable: false,
+      get() {
+        return target[propertyName];
+      },
+      set(value) {
+        target[propertyName] = value;
+      },
+    });
+  }
+  return Object.seal(section);
+}
+
 
 function randomRange(min, max) {
   return min + Math.random() * (max - min);
@@ -229,57 +366,58 @@ function isFifthBossEliteEnemy(enemy) {
 }
 
 function resetEnemyCounters() {
-  state.normalSpawnEnemyCount = 0;
-  state.fifthBossEliteCount = 0;
+  state.combat.normalSpawnEnemyCount = 0;
+  state.combat.fifthBossEliteCount = 0;
 }
 
 function recalculateEnemyCounters() {
+  const { combat } = state;
   let normalSpawnEnemyCount = 0;
   let fifthBossEliteCount = 0;
-  for (const enemy of state.enemies) {
+  for (const enemy of combat.enemies) {
     if (isNormalSpawnEnemy(enemy)) normalSpawnEnemyCount += 1;
     if (isFifthBossEliteEnemy(enemy)) fifthBossEliteCount += 1;
   }
-  state.normalSpawnEnemyCount = normalSpawnEnemyCount;
-  state.fifthBossEliteCount = fifthBossEliteCount;
+  combat.normalSpawnEnemyCount = normalSpawnEnemyCount;
+  combat.fifthBossEliteCount = fifthBossEliteCount;
 }
 
 function trackEnemyAdded(enemy) {
-  if (isNormalSpawnEnemy(enemy)) state.normalSpawnEnemyCount += 1;
-  if (isFifthBossEliteEnemy(enemy)) state.fifthBossEliteCount += 1;
+  if (isNormalSpawnEnemy(enemy)) state.combat.normalSpawnEnemyCount += 1;
+  if (isFifthBossEliteEnemy(enemy)) state.combat.fifthBossEliteCount += 1;
 }
 
 function trackEnemyRemoved(enemy) {
   if (isNormalSpawnEnemy(enemy)) {
-    state.normalSpawnEnemyCount = Math.max(0, state.normalSpawnEnemyCount - 1);
+    state.combat.normalSpawnEnemyCount = Math.max(0, state.combat.normalSpawnEnemyCount - 1);
   }
   if (isFifthBossEliteEnemy(enemy)) {
-    state.fifthBossEliteCount = Math.max(0, state.fifthBossEliteCount - 1);
+    state.combat.fifthBossEliteCount = Math.max(0, state.combat.fifthBossEliteCount - 1);
   }
 }
 
 function addEnemy(enemy) {
-  state.enemies.push(enemy);
+  state.combat.enemies.push(enemy);
   trackEnemyAdded(enemy);
   return enemy;
 }
 
 function removeEnemyAt(index) {
-  const enemy = state.enemies[index];
+  const enemy = state.combat.enemies[index];
   if (!enemy) return null;
   trackEnemyRemoved(enemy);
-  state.enemies.splice(index, 1);
+  state.combat.enemies.splice(index, 1);
   return enemy;
 }
 
 function replaceEnemies(nextEnemies) {
-  state.enemies = nextEnemies;
+  state.combat.enemies = nextEnemies;
   recalculateEnemyCounters();
-  return state.enemies;
+  return state.combat.enemies;
 }
 
 function countFifthBossElites() {
-  return state.fifthBossEliteCount;
+  return state.combat.fifthBossEliteCount;
 }
 
 document.documentElement.dataset.buildVariant = BUILD_VARIANT;
@@ -339,6 +477,8 @@ function saveDifficultyUnlocks(unlocks) {
 }
 
 function isDifficultyUnlocked(key) {
+  if (!(key in DEFAULT_DIFFICULTY_UNLOCKS)) return false;
+  if (isDevBuild()) return true;
   if (key === "easy" || key === "normal") return true;
   return Boolean(state.difficultyUnlocks?.[key]);
 }
@@ -422,6 +562,7 @@ function isPracticeSpecialUnlocked(upgradeOrKey) {
     : upgradeOrKey;
   if (!upgrade) return true;
   if (upgrade.red || upgrade.rainbow) {
+    if (isDevBuild()) return true;
     return hasPracticeSkillUnlock(upgrade.key);
   }
   return true;
@@ -499,62 +640,83 @@ function getMoveAxis(negative, positive) {
 }
 
 function updateMouseWorld() {
-  state.mouse.worldX = state.camera.x - WIDTH / 2 + state.mouse.x;
-  state.mouse.worldY = state.camera.y - HEIGHT / 2 + state.mouse.y;
+  const { camera, mouse } = state.view;
+  mouse.worldX = camera.x - WIDTH / 2 + mouse.x;
+  mouse.worldY = camera.y - HEIGHT / 2 + mouse.y;
+}
+
+function clearCombatCollections() {
+  const { combat } = state;
+  replaceEnemies([]);
+  combat.playerProjectiles = [];
+  combat.enemyProjectiles = [];
+  combat.pickups = [];
+  combat.bursts = [];
+  combat.burstAddsThisFrame = 0;
+  combat.chainExplosionQueue = [];
+  combat.safeZones = [];
+  combat.sanctuaryAttack = null;
+  combat.smokeFans = [];
+  combat.blinkBanZones = [];
+  combat.lanceVolley = null;
+  combat.bossDoor = null;
+  combat.arena = null;
+}
+
+function resetStatusEffectsState() {
+  const { status } = state;
+  status.inkTimer = 0;
+  status.inkStrength = 1;
+  status.darkZone = null;
+  status.darkZoneInside = false;
+  status.darkZoneTransitionFlash = 0;
+  status.reverseHorizontalTimer = 0;
+  status.reverseVerticalTimer = 0;
+  status.reverseWarningAxis = null;
+  status.reverseWarningTimer = 0;
+  status.reversePendingDuration = 0;
+}
+
+function resetEncounterRuntimeState() {
+  state.stage.bossSpawned = false;
+  state.stage.bossDefeated = false;
+}
+
+function resetRunRuntimeState() {
+  const { run, stage, practice, combat, ui, view } = state;
+  run.running = false;
+  run.paused = false;
+  run.gameOver = false;
+  run.won = false;
+  run.time = 0;
+  run.spawnTimer = 0;
+  run.flash = 0;
+  stage.stageIndex = 0;
+  stage.stageKills = 0;
+  stage.pendingLevelUps = 0;
+  stage.stageState = "wave";
+  stage.stageIntroTimer = 2;
+  stage.claimedBossRewards = {};
+  stage.nextSafeZoneGroupId = 1;
+  practice.practiceMode = false;
+  practice.practicePanelOpen = false;
+  practice.practicePanelSection = null;
+  practice.practiceDoors = [];
+  practice.practiceReturnToHub = false;
+  combat.damageStats = {};
+  combat.lastDamageCause = "";
+  ui.hiddenRainbowAnnouncement = null;
+  view.mouse.down = false;
+  view.camera = { x: 0, y: 0 };
 }
 
 function resetGame() {
-  state.running = false;
-  state.paused = false;
-  state.gameOver = false;
-  state.won = false;
-  state.time = 0;
-  state.spawnTimer = 0;
-  state.flash = 0;
-  state.stageIndex = 0;
-  state.stageKills = 0;
-  state.pendingLevelUps = 0;
-  state.stageState = "wave";
-  state.stageIntroTimer = 2;
-  state.bossSpawned = false;
-  state.bossDefeated = false;
-  state.player = createPlayer();
-  replaceEnemies([]);
-  state.playerProjectiles = [];
-  state.enemyProjectiles = [];
-  state.pickups = [];
-  state.bursts = [];
-  state.burstAddsThisFrame = 0;
-  state.chainExplosionQueue = [];
-  state.safeZones = [];
-  state.sanctuaryAttack = null;
-  state.smokeFans = [];
-  state.blinkBanZones = [];
-  state.lanceVolley = null;
-  state.bossDoor = null;
-  state.practiceMode = false;
-  state.practicePanelOpen = false;
-  state.practiceDoors = [];
-  state.inkTimer = 0;
-  state.inkStrength = 1;
-  state.darkZone = null;
-  state.darkZoneInside = false;
-  state.darkZoneTransitionFlash = 0;
-  state.reverseHorizontalTimer = 0;
-  state.reverseVerticalTimer = 0;
-  state.reverseWarningAxis = null;
-  state.reverseWarningTimer = 0;
-  state.reversePendingDuration = 0;
-  state.damageStats = {};
-  state.lastDamageCause = "";
-  state.hiddenRainbowAnnouncement = null;
-  state.claimedBossRewards = {};
-  state.nextSafeZoneGroupId = 1;
-  state.arena = null;
-  state.mouse.down = false;
-  resetEnemyCounters();
+  resetRunRuntimeState();
+  resetEncounterRuntimeState();
+  state.combat.player = createPlayer();
+  clearCombatCollections();
+  resetStatusEffectsState();
   keys.clear();
-  state.camera = { x: 0, y: 0 };
   updateMouseWorld();
   updatePracticePanel();
   updateGameReturnButton();

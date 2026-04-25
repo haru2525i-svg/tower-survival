@@ -15,6 +15,15 @@ function pointInBossFan(point, fan) {
     && Math.abs(angleDifference(angle, fan.angle)) <= fan.arc / 2;
 }
 
+const {
+  run: bossPatternRunState,
+  stage: bossPatternStageState,
+  combat: bossPatternCombatState,
+  practice: bossPatternPracticeState,
+  status: bossPatternStatusState,
+  view: bossPatternViewState,
+} = state;
+
 function bossSweepAngle(phase) {
   const progress = 1 - clamp(phase.timer / phase.total, 0, 1);
   return phase.angle + phase.arc / 2 - phase.arc * progress;
@@ -57,10 +66,10 @@ function addSafeZoneBurst(zone) {
 }
 
 function resolveSafeZoneGroup(groupId) {
-  const zones = state.safeZones.filter((zone) => zone.groupId === groupId);
+  const zones = bossPatternCombatState.safeZones.filter((zone) => zone.groupId === groupId);
   if (!zones.length || zones.every((zone) => zone.resolved)) return;
 
-  const player = state.player;
+  const player = bossPatternCombatState.player;
   const insideAny = zones.some((zone) => pointInsideSafeZone(player, zone));
   const isDanger = zones.some((zone) => zone.danger);
   if ((isDanger && insideAny) || (!isDanger && !insideAny)) {
@@ -87,8 +96,8 @@ function pickFifthBossCirclePositions(count, radius, arena, left, right) {
       const angle = (Math.PI * 2 * i) / count + attempt * 0.63 + randomRange(-0.28, 0.28);
       const ring = radius * (1.45 + (attempt % 5) * 0.18);
       const candidate = {
-        x: clamp(state.player.x + Math.cos(angle) * ring, left + radius, right - radius),
-        y: clamp(state.player.y + Math.sin(angle) * ring, top + radius, bottom - radius),
+        x: clamp(bossPatternCombatState.player.x + Math.cos(angle) * ring, left + radius, right - radius),
+        y: clamp(bossPatternCombatState.player.y + Math.sin(angle) * ring, top + radius, bottom - radius),
       };
       const nearest = positions.length
         ? Math.min(...positions.map((position) => distance(position, candidate)))
@@ -99,7 +108,7 @@ function pickFifthBossCirclePositions(count, radius, arena, left, right) {
         break;
       }
 
-      const score = nearest + distance(candidate, state.player) * 0.08;
+      const score = nearest + distance(candidate, bossPatternCombatState.player) * 0.08;
       if (score > bestScore) {
         best = candidate;
         bestScore = score;
@@ -113,8 +122,8 @@ function pickFifthBossCirclePositions(count, radius, arena, left, right) {
 }
 
 function spawnBossHazard(boss) {
-  if (!state.arena) return;
-  const arena = state.arena;
+  if (!bossPatternCombatState.arena) return;
+  const arena = bossPatternCombatState.arena;
   const circleEnabled = isDevBossHazardEnabled("circle");
   const rectEnabled = isDevBossHazardEnabled("rect");
   if (!circleEnabled && !rectEnabled) return;
@@ -125,10 +134,10 @@ function spawnBossHazard(boss) {
   const left = arena.x - arena.width / 2 + 70;
   const right = arena.x + arena.width / 2 - 70;
   const fifthHalfHazard = isFifthBossHalfHpHazard(boss);
-  const hazardCount = useCircle && fifthHalfHazard ? 3 : 4 + state.stageIndex;
-  const circleRadius = fifthHalfHazard ? 118 : 62 + state.stageIndex * 3;
-  const circleWarningTime = fifthHalfHazard ? 1.25 : Math.max(0.45, 1 - state.stageIndex * 0.09);
-  const rectWarningTime = Math.max(0.55, 1 - state.stageIndex * 0.06);
+  const hazardCount = useCircle && fifthHalfHazard ? 3 : 4 + bossPatternStageState.stageIndex;
+  const circleRadius = fifthHalfHazard ? 118 : 62 + bossPatternStageState.stageIndex * 3;
+  const circleWarningTime = fifthHalfHazard ? 1.25 : Math.max(0.45, 1 - bossPatternStageState.stageIndex * 0.09);
+  const rectWarningTime = Math.max(0.55, 1 - bossPatternStageState.stageIndex * 0.06);
   const fifthCirclePositions = useCircle && fifthHalfHazard
     ? pickFifthBossCirclePositions(hazardCount, circleRadius, arena, left, right)
     : null;
@@ -140,18 +149,18 @@ function spawnBossHazard(boss) {
 
     if (useCircle) {
       const targetAngle = (Math.PI * 2 * i) / hazardCount + randomRange(-0.32, 0.32);
-      const targetDistance = i === 0 ? 0 : randomRange(54, 150 + state.stageIndex * 10);
+      const targetDistance = i === 0 ? 0 : randomRange(54, 150 + bossPatternStageState.stageIndex * 10);
       const fifthPosition = fifthCirclePositions?.[i];
       addSafeZone({
         type: "circle",
         safe: true,
         x: fifthPosition ? fifthPosition.x : clamp(
-          state.player.x + Math.cos(targetAngle) * targetDistance,
+          bossPatternCombatState.player.x + Math.cos(targetAngle) * targetDistance,
           left,
           right,
         ),
         y: fifthPosition ? fifthPosition.y : clamp(
-          state.player.y + Math.sin(targetAngle) * targetDistance,
+          bossPatternCombatState.player.y + Math.sin(targetAngle) * targetDistance,
           arena.y - arena.height / 2 + 76,
           arena.y + arena.height / 2 - 76,
         ),
@@ -172,7 +181,7 @@ function spawnBossHazard(boss) {
         safe: true,
         x: clamp(x, left, right),
         y: arena.y,
-        width: Math.max(48, 78 - state.stageIndex * 4),
+        width: Math.max(48, 78 - bossPatternStageState.stageIndex * 4),
         height: arena.height - 42,
         life: rectWarningTime,
         maxLife: rectWarningTime,
@@ -188,7 +197,7 @@ function spawnBossHazard(boss) {
 }
 
 function getBossHazardCooldown(boss) {
-  if (state.stageIndex === 4 && boss.fifthIntermissionActive) {
+  if (bossPatternStageState.stageIndex === 4 && boss.fifthIntermissionActive) {
     return 3.1;
   }
 
@@ -196,16 +205,16 @@ function getBossHazardCooldown(boss) {
     return 5.4;
   }
 
-  const hazardCooldown = Math.max(1.15, 4.8 - state.stageIndex * 0.62);
+  const hazardCooldown = Math.max(1.15, 4.8 - bossPatternStageState.stageIndex * 0.62);
   return boss.enraged ? Math.max(0.75, hazardCooldown * 0.7) : hazardCooldown;
 }
 
 function spawnBossShooterMinion(boss, slot, total) {
-  if (!state.arena) return;
+  if (!bossPatternCombatState.arena) return;
 
   const stage = currentStage();
-  const bossDamageScale = 1 + state.stageIndex * 0.26;
-  const arena = state.arena;
+  const bossDamageScale = 1 + bossPatternStageState.stageIndex * 0.26;
+  const arena = bossPatternCombatState.arena;
   const angle = (Math.PI * 2 * slot) / total + randomRange(-0.25, 0.25);
   const spawnDistance = randomRange(105, 165);
   const x = clamp(
@@ -218,7 +227,7 @@ function spawnBossShooterMinion(boss, slot, total) {
     arena.y - arena.height / 2 + 42,
     arena.y + arena.height / 2 - 42,
   );
-  const hp = (135 + state.stageIndex * 42) * stage.enemyHp;
+  const hp = (135 + bossPatternStageState.stageIndex * 42) * stage.enemyHp;
 
   addEnemy({
     type: "mob",
@@ -229,11 +238,11 @@ function spawnBossShooterMinion(boss, slot, total) {
     y,
     drawRadius: 16,
     hitRadius: 10,
-    speed: 62 + state.stageIndex * 8,
+    speed: 62 + bossPatternStageState.stageIndex * 8,
     hp,
     maxHp: hp,
-    damage: (12 + state.stageIndex * 2.4) * stage.bossDamage * bossDamageScale,
-    xp: (18 + state.stageIndex * 8) * getDifficultyXpMultiplier(),
+    damage: (12 + bossPatternStageState.stageIndex * 2.4) * stage.bossDamage * bossDamageScale,
+    xp: (18 + bossPatternStageState.stageIndex * 8) * getDifficultyXpMultiplier(),
     color: "#ff9f5c",
     chestChance: 0,
     healChance: 0.08,
@@ -268,12 +277,12 @@ function spawnBossShooterMinion(boss, slot, total) {
 
 function updateBossSummons(boss, dt) {
   if (!areDevBossSummonsEnabled()) return;
-  if (state.stageIndex !== 3) return;
+  if (bossPatternStageState.stageIndex !== 3) return;
 
   boss.summonTimer -= dt;
   if (boss.summonTimer > 0) return;
 
-  const activeSummons = state.enemies.filter((enemy) => enemy.variant === "bossShooter").length;
+  const activeSummons = bossPatternCombatState.enemies.filter((enemy) => enemy.variant === "bossShooter").length;
   const maxSummons = 4;
   const summonCount = Math.min(2, maxSummons - activeSummons);
 
@@ -304,7 +313,7 @@ function updateBossShield(boss, dt) {
 }
 
 function updateBossEnrage(boss) {
-  if (state.stageIndex < 2 || boss.enraged || boss.hp > boss.maxHp / 3) return;
+  if (bossPatternStageState.stageIndex < 2 || boss.enraged || boss.hp > boss.maxHp / 3) return;
 
   boss.enraged = true;
   boss.speed *= 1.6;
@@ -321,28 +330,28 @@ function updateBossEnrage(boss) {
 }
 
 function moveBossDuringSlash(boss, dt) {
-  const angle = Math.atan2(state.player.y - boss.y, state.player.x - boss.x);
+  const angle = Math.atan2(bossPatternCombatState.player.y - boss.y, bossPatternCombatState.player.x - boss.x);
   boss.x += Math.cos(angle) * boss.speed * 1.2 * dt;
   boss.y += Math.sin(angle) * boss.speed * 1.2 * dt;
-  if (state.arena) {
-    const halfWidth = state.arena.width / 2 - boss.hitRadius;
-    const halfHeight = state.arena.height / 2 - boss.hitRadius;
-    boss.x = clamp(boss.x, state.arena.x - halfWidth, state.arena.x + halfWidth);
-    boss.y = clamp(boss.y, state.arena.y - halfHeight, state.arena.y + halfHeight);
+  if (bossPatternCombatState.arena) {
+    const halfWidth = bossPatternCombatState.arena.width / 2 - boss.hitRadius;
+    const halfHeight = bossPatternCombatState.arena.height / 2 - boss.hitRadius;
+    boss.x = clamp(boss.x, bossPatternCombatState.arena.x - halfWidth, bossPatternCombatState.arena.x + halfWidth);
+    boss.y = clamp(boss.y, bossPatternCombatState.arena.y - halfHeight, bossPatternCombatState.arena.y + halfHeight);
   }
 }
 
 function blinkBlueSlashEnemy(enemy) {
   const oldX = enemy.x;
   const oldY = enemy.y;
-  let angle = Math.atan2(enemy.y - state.player.y, enemy.x - state.player.x);
+  let angle = Math.atan2(enemy.y - bossPatternCombatState.player.y, enemy.x - bossPatternCombatState.player.x);
   if (!Number.isFinite(angle)) {
     angle = Math.random() * Math.PI * 2;
   }
 
-  const blinkDistance = state.player.hitRadius + enemy.hitRadius + 52;
-  enemy.x = state.player.x + Math.cos(angle) * blinkDistance;
-  enemy.y = state.player.y + Math.sin(angle) * blinkDistance;
+  const blinkDistance = bossPatternCombatState.player.hitRadius + enemy.hitRadius + 52;
+  enemy.x = bossPatternCombatState.player.x + Math.cos(angle) * blinkDistance;
+  enemy.y = bossPatternCombatState.player.y + Math.sin(angle) * blinkDistance;
 
   addBurst({
     kind: "ring",
@@ -365,9 +374,9 @@ function blinkBlueSlashEnemy(enemy) {
 }
 
 function pickSanctuaryPosition(radius) {
-  const arena = state.arena;
+  const arena = bossPatternCombatState.arena;
   if (!arena) {
-    return { x: state.player.x, y: state.player.y };
+    return { x: bossPatternCombatState.player.x, y: bossPatternCombatState.player.y };
   }
 
   const margin = radius + 34;
@@ -375,12 +384,12 @@ function pickSanctuaryPosition(radius) {
   const targetDistance = randomRange(70, 170);
   return {
     x: clamp(
-      state.player.x + Math.cos(targetAngle) * targetDistance,
+      bossPatternCombatState.player.x + Math.cos(targetAngle) * targetDistance,
       arena.x - arena.width / 2 + margin,
       arena.x + arena.width / 2 - margin,
     ),
     y: clamp(
-      state.player.y + Math.sin(targetAngle) * targetDistance,
+      bossPatternCombatState.player.y + Math.sin(targetAngle) * targetDistance,
       arena.y - arena.height / 2 + margin,
       arena.y + arena.height / 2 - margin,
     ),
@@ -388,20 +397,20 @@ function pickSanctuaryPosition(radius) {
 }
 
 function getSanctuaryWarningDuration() {
-  return Math.max(1, 2 - Math.max(0, state.stageIndex - 3) * 0.18);
+  return Math.max(1, 2 - Math.max(0, bossPatternStageState.stageIndex - 3) * 0.18);
 }
 
 function getSanctuaryPulseCount() {
-  return Math.max(2, 2 + Math.max(0, state.stageIndex - 3));
+  return Math.max(2, 2 + Math.max(0, bossPatternStageState.stageIndex - 3));
 }
 
 function spawnSanctuaryOrbs(attack) {
-  if (!state.arena || !attack) return;
+  if (!bossPatternCombatState.arena || !attack) return;
 
-  const arena = state.arena;
+  const arena = bossPatternCombatState.arena;
   const halfWidth = arena.width / 2 - 34;
   const halfHeight = arena.height / 2 - 34;
-  const speed = 170 + state.stageIndex * 18;
+  const speed = 170 + bossPatternStageState.stageIndex * 18;
   attack.orbs = [];
 
   for (let i = 0; i < attack.pulseCount; i += 1) {
@@ -414,7 +423,7 @@ function spawnSanctuaryOrbs(attack) {
     );
     const x = arena.x + dx * edgeDistance;
     const y = arena.y + dy * edgeDistance;
-    const aim = Math.atan2(state.player.y - y, state.player.x - x);
+    const aim = Math.atan2(bossPatternCombatState.player.y - y, bossPatternCombatState.player.x - x);
 
     attack.orbs.push({
       x,
@@ -432,13 +441,13 @@ function spawnSanctuaryOrbs(attack) {
 }
 
 function startBossSanctuary(boss) {
-  const radius = 102 + state.stageIndex * 8;
+  const radius = 102 + bossPatternStageState.stageIndex * 8;
   const position = pickSanctuaryPosition(radius);
   const warningDuration = getSanctuaryWarningDuration();
   const pulseCount = getSanctuaryPulseCount();
-  const pulseSpacing = Math.max(0.22, 0.56 - Math.max(0, state.stageIndex - 3) * 0.04);
+  const pulseSpacing = Math.max(0.22, 0.56 - Math.max(0, bossPatternStageState.stageIndex - 3) * 0.04);
   const total = warningDuration + 2 + pulseSpacing * pulseCount;
-  state.sanctuaryAttack = {
+  bossPatternCombatState.sanctuaryAttack = {
     x: position.x,
     y: position.y,
     radius,
@@ -473,22 +482,22 @@ function startBossSanctuary(boss) {
 }
 
 function finishBossSanctuary() {
-  if (state.sanctuaryAttack) {
+  if (bossPatternCombatState.sanctuaryAttack) {
     addBurst({
       kind: "ring",
-      x: state.sanctuaryAttack.x,
-      y: state.sanctuaryAttack.y,
-      radius: state.sanctuaryAttack.radius,
+      x: bossPatternCombatState.sanctuaryAttack.x,
+      y: bossPatternCombatState.sanctuaryAttack.y,
+      radius: bossPatternCombatState.sanctuaryAttack.radius,
       life: 0.24,
       maxLife: 0.24,
       color: "rgba(255,255,255,0.72)",
     });
   }
-  state.sanctuaryAttack = null;
+  bossPatternCombatState.sanctuaryAttack = null;
 }
 
 function updateBossSanctuary(dt) {
-  const attack = state.sanctuaryAttack;
+  const attack = bossPatternCombatState.sanctuaryAttack;
   if (!attack) return;
 
   attack.timer = Math.max(0, attack.timer - dt);
@@ -500,7 +509,7 @@ function updateBossSanctuary(dt) {
     return;
   }
 
-  const player = state.player;
+  const player = bossPatternCombatState.player;
   const insideSafe = distance(player, attack) <= attack.radius - player.hitRadius;
 
   for (const pulse of attack.pulses) {
@@ -533,7 +542,7 @@ function updateBossSanctuary(dt) {
       if (player.recoveryArmor > 0) {
         player.recoveryArmor = 0;
         player.recoveryArmorTimer = player.recoveryArmorDelay;
-        state.flash = 1;
+        bossPatternRunState.flash = 1;
       } else {
         damagePlayer(attack.damage * 1.45, orb, 160);
       }
@@ -564,8 +573,8 @@ function updateBossSanctuary(dt) {
 }
 
 function tryClickSanctuaryOrb() {
-  const attack = state.sanctuaryAttack;
-  const cursor = { x: state.mouse.worldX, y: state.mouse.worldY };
+  const attack = bossPatternCombatState.sanctuaryAttack;
+  const cursor = { x: bossPatternViewState.mouse.worldX, y: bossPatternViewState.mouse.worldY };
   if (!attack?.orbs?.length) return false;
 
   let hitIndex = -1;
@@ -616,36 +625,36 @@ function startBossKnifeAttack(boss) {
 }
 
 function startBossKatanaAttack(boss) {
-  const angle = Math.atan2(state.player.y - boss.y, state.player.x - boss.x);
+  const angle = Math.atan2(bossPatternCombatState.player.y - boss.y, bossPatternCombatState.player.x - boss.x);
   boss.phase = {
     type: "katanaWideWindup",
     timer: 0.62,
     total: 0.62,
     angle,
-    radius: 390 + state.stageIndex * 12,
+    radius: 390 + bossPatternStageState.stageIndex * 12,
     arc: Math.PI * 0.84,
   };
 }
 
 function isReverseEffectActive() {
-  return state.reverseHorizontalTimer > 0
-    || state.reverseVerticalTimer > 0
-    || state.reverseWarningTimer > 0;
+  return bossPatternStatusState.reverseHorizontalTimer > 0
+    || bossPatternStatusState.reverseVerticalTimer > 0
+    || bossPatternStatusState.reverseWarningTimer > 0;
 }
 
 function startBossStatusAttack(boss) {
   const modes = ["darkZone", "blinkBan"];
-  if (state.stageIndex >= 2) {
+  if (bossPatternStageState.stageIndex >= 2) {
     modes.splice(1, 0, "reverseHorizontal", "reverseVertical");
   }
 
   let selectable = [...modes];
-  if (state.practiceMode) {
-    selectable = selectable.filter((mode) => state.practiceStatusToggles[mode] !== false);
+  if (bossPatternPracticeState.practiceMode) {
+    selectable = selectable.filter((mode) => bossPatternPracticeState.practiceStatusToggles[mode] !== false);
   }
   selectable = selectable.filter((mode) => isDevBossStatusModeEnabled(mode));
-  if (state.stageIndex < 4) {
-    if (state.darkZone) {
+  if (bossPatternStageState.stageIndex < 4) {
+    if (bossPatternStatusState.darkZone) {
       selectable = selectable.filter((mode) => mode !== "reverseHorizontal" && mode !== "reverseVertical");
     }
     if (isReverseEffectActive()) {
@@ -662,11 +671,11 @@ function startBossStatusAttack(boss) {
     timer: 0.78,
     total: 0.78,
     mode,
-    radius: 160 + state.stageIndex * 10,
+    radius: 160 + bossPatternStageState.stageIndex * 10,
     orientation: Math.random() < 0.5 ? "horizontal" : "vertical",
     side: Math.random() < 0.5 ? (Math.random() < 0.5 ? "left" : "right") : (Math.random() < 0.5 ? "top" : "bottom"),
-    x: state.player.x,
-    y: state.player.y,
+    x: bossPatternCombatState.player.x,
+    y: bossPatternCombatState.player.y,
   };
 
   if (boss.phase.orientation === "horizontal") {
@@ -679,17 +688,17 @@ function startBossStatusAttack(boss) {
 }
 
 function startBossPattern(boss) {
-  const player = state.player;
+  const player = bossPatternCombatState.player;
   const patterns = ["charge", "slash", "volley"];
-  if (state.stageIndex >= 3) patterns.push("sanctuary");
-  if (state.stageIndex >= 1) patterns.push("status");
-  if (state.stageIndex >= 6) patterns.push("knife");
-  if (state.stageIndex >= 7) patterns.push("katana");
+  if (bossPatternStageState.stageIndex >= 3) patterns.push("sanctuary");
+  if (bossPatternStageState.stageIndex >= 1) patterns.push("status");
+  if (bossPatternStageState.stageIndex >= 6) patterns.push("knife");
+  if (bossPatternStageState.stageIndex >= 7) patterns.push("katana");
   const enabledPatterns = patterns.filter((pattern) => isDevBossPatternEnabled(pattern));
   const patternPool = enabledPatterns.length ? enabledPatterns : patterns;
   const pattern = patternPool[boss.attackIndex % patternPool.length];
   boss.attackIndex += 1;
-  const stagePower = state.stageIndex;
+  const stagePower = bossPatternStageState.stageIndex;
 
   if (pattern === "charge") {
     const windup = Math.max(0.42, 0.65 - stagePower * 0.045);
@@ -709,7 +718,7 @@ function startBossPattern(boss) {
       timer: windup,
       total: windup,
       angle: Math.atan2(player.y - boss.y, player.x - boss.x),
-      radius: 320 + state.stageIndex * 18,
+      radius: 320 + bossPatternStageState.stageIndex * 18,
       arc: Math.PI * 0.86,
       fired: false,
     };
@@ -751,7 +760,7 @@ function resolveSafeZone(zone) {
     return;
   }
 
-  const player = state.player;
+  const player = bossPatternCombatState.player;
 
   const inside = pointInsideSafeZone(player, zone);
   if ((zone.danger && inside) || (!zone.danger && !inside)) {

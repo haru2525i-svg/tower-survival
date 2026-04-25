@@ -327,6 +327,167 @@ body {
   margin-bottom: 0;
 }
 
+.records-block {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.player-name-box {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.player-name-label {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.player-name-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 11px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(8, 15, 28, 0.78);
+  color: var(--text);
+  font: inherit;
+}
+
+.player-name-input:focus {
+  outline: none;
+  border-color: rgba(255, 211, 107, 0.72);
+  box-shadow: 0 0 0 2px rgba(255, 211, 107, 0.14);
+}
+
+.player-name-help {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.records-block-title {
+  margin: 0;
+  font-size: 18px;
+}
+
+.records-block-lead {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.clear-summary-list {
+  display: grid;
+  gap: 10px;
+}
+
+.online-ranking-list {
+  display: grid;
+  gap: 10px;
+}
+
+.online-ranking-card {
+  display: grid;
+  gap: 7px;
+  padding: 14px 15px;
+  border-radius: 18px;
+  border: 1px solid rgba(120, 232, 255, 0.24);
+  background:
+    linear-gradient(135deg, rgba(120, 232, 255, 0.1), rgba(255, 255, 255, 0.03)),
+    rgba(255, 255, 255, 0.03);
+}
+
+.online-ranking-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.online-ranking-rank {
+  color: #9beaff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.online-ranking-name {
+  color: var(--text);
+  font-size: 15px;
+}
+
+.online-ranking-meta,
+.online-ranking-foot {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.clear-summary-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px 15px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 211, 107, 0.28);
+  background:
+    linear-gradient(135deg, rgba(255, 211, 107, 0.1), rgba(255, 255, 255, 0.03)),
+    rgba(255, 255, 255, 0.03);
+}
+
+.clear-summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.clear-summary-title {
+  color: var(--text);
+  font-size: 15px;
+}
+
+.clear-summary-count {
+  color: #ffe39e;
+  font-size: 12px;
+}
+
+.clear-summary-stage-list {
+  display: grid;
+  gap: 8px;
+}
+
+.clear-summary-stage-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.clear-summary-stage-label {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.clear-summary-stage-meta {
+  color: var(--muted);
+  font-size: 12px;
+  text-align: right;
+}
+
 .history-list {
   display: grid;
   gap: 10px;
@@ -398,6 +559,17 @@ body {
   color: #ffd9de;
   font-size: 13px;
   line-height: 1.45;
+}
+
+@media (max-width: 720px) {
+  .clear-summary-stage-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .clear-summary-stage-meta {
+    text-align: left;
+  }
 }
 
 .eyebrow {
@@ -503,11 +675,23 @@ h2 {
   display: none;
 }
 
-.practice-panel-toggle {
+.practice-panel-toggle-group {
   position: absolute;
   left: 14px;
   top: 14px;
   z-index: 6;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: min(520px, calc(100% - 28px));
+}
+
+.practice-panel-toggle-group.hidden {
+  display: none;
+}
+
+.practice-panel-toggle {
+  position: static;
   border: 1px solid rgba(120, 232, 255, 0.3);
   border-radius: 999px;
   padding: 11px 16px;
@@ -534,6 +718,27 @@ h2 {
 .practice-panel span {
   color: var(--muted);
   font-size: 13px;
+}
+
+.practice-panel-section {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)),
+    rgba(255, 255, 255, 0.03);
+}
+
+.practice-panel-section.hidden,
+.practice-panel-subsection.hidden {
+  display: none;
+}
+
+.practice-panel-subsection {
+  display: grid;
+  gap: 8px;
 }
 
 .practice-controls {
